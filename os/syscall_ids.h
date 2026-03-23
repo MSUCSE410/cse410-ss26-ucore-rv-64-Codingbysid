@@ -296,3 +296,11 @@
 #define SYS_pidfd_getfd 438
 #define SYS_faccessat2 439
 #define SYS_riscv_flush_icache 244 + 15
+#define SYS_write 64
+#define SYS_exit 93
+#define SYS_sched_yield 124
+#define SYS_gettimeofday 169
+#define SYS_getpid 172
+#define SYS_task_info 410
+#define SYS_mmap 222
+#define SYS_munmap 215

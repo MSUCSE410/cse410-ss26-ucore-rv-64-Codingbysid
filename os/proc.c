@@ -3,6 +3,9 @@
 #include "loader.h"
 #include "trap.h"
 #include "vm.h"
+#include "timer.h" // Added for get_cycle()
+
+uint64 get_cycle(); // Declaration for hardware clock
 
 struct proc pool[NPROC];
 __attribute__((aligned(16))) char kstack[NPROC][PAGE_SIZE];
@@ -14,35 +17,40 @@ struct proc idle;
 
 int threadid()
 {
-	return curr_proc()->pid;
+    return curr_proc()->pid;
 }
 
 struct proc *curr_proc()
 {
-	return current_proc;
+    return current_proc;
 }
 
 // initialize the proc table at boot time.
 void proc_init(void)
 {
-	struct proc *p;
-	for (p = pool; p < &pool[NPROC]; p++) {
-		p->state = UNUSED;
-		p->kstack = (uint64)kstack[p - pool];
-		p->trapframe = (struct trapframe *)trapframe[p - pool];
-		/*
-		* LAB1: you may need to initialize your new fields of proc here
-		*/
-	}
-	idle.kstack = (uint64)boot_stack_top;
-	idle.pid = 0;
-	current_proc = &idle;
+    struct proc *p;
+    for (p = pool; p < &pool[NPROC]; p++) {
+        p->state = UNUSED;
+        p->kstack = (uint64)kstack[p - pool];
+        p->trapframe = (struct trapframe *)trapframe[p - pool];
+        
+        /*
+        * LAB1: Initialize tracking fields
+        */
+        for (int i = 0; i < MAX_SYSCALL_NUM; i++) {
+            p->syscall_times[i] = 0;
+        }
+        p->start_time = 0;
+    }
+    idle.kstack = (uint64)boot_stack_top;
+    idle.pid = 0;
+    current_proc = &idle;
 }
 
 int allocpid()
 {
-	static int PID = 1;
-	return PID++;
+    static int PID = 1;
+    return PID++;
 }
 
 // Look in the process table for an UNUSED proc.
@@ -50,26 +58,35 @@ int allocpid()
 // If there are no free procs, or a memory allocation fails, return 0.
 struct proc *allocproc(void)
 {
-	struct proc *p;
-	for (p = pool; p < &pool[NPROC]; p++) {
-		if (p->state == UNUSED) {
-			goto found;
-		}
-	}
-	return 0;
+    struct proc *p;
+    for (p = pool; p < &pool[NPROC]; p++) {
+        if (p->state == UNUSED) {
+            goto found;
+        }
+    }
+    return 0;
 
 found:
-	p->pid = allocpid();
-	p->state = USED;
-	p->pagetable = 0;
-	p->ustack = 0;
-	p->max_page = 0;
-	memset(&p->context, 0, sizeof(p->context));
-	memset((void *)p->kstack, 0, KSTACK_SIZE);
-	memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
-	p->context.ra = (uint64)usertrapret;
-	p->context.sp = p->kstack + KSTACK_SIZE;
-	return p;
+    p->pid = allocpid();
+    p->state = USED;
+    p->pagetable = 0;
+    p->ustack = 0;
+    p->max_page = 0;
+    memset(&p->context, 0, sizeof(p->context));
+    memset((void *)p->kstack, 0, KSTACK_SIZE);
+    memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
+
+    /*
+    * LAB1: Reset counters for reused memory blocks
+    */
+    for (int i = 0; i < MAX_SYSCALL_NUM; i++) {
+        p->syscall_times[i] = 0;
+    }
+    p->start_time = 0;
+
+    p->context.ra = (uint64)usertrapret;
+    p->context.sp = p->kstack + KSTACK_SIZE;
+    return p;
 }
 
 // Scheduler never returns.  It loops, doing:
@@ -79,19 +96,23 @@ found:
 //    via swtch back to the scheduler.
 void scheduler(void)
 {
-	struct proc *p;
-	for (;;) {
-		for (p = pool; p < &pool[NPROC]; p++) {
-			if (p->state == RUNNABLE) {
-				/*
-				* LAB1: you may need to init proc start time here
-				*/
-				p->state = RUNNING;
-				current_proc = p;
-				swtch(&idle.context, &p->context);
-			}
-		}
-	}
+    struct proc *p;
+    for (;;) {
+        for (p = pool; p < &pool[NPROC]; p++) {
+            if (p->state == RUNNABLE) {
+                /*
+                * LAB1: Start the clock when process hits the CPU
+                */
+                if (p->start_time == 0) {
+                    p->start_time = get_cycle();
+                }
+
+                p->state = RUNNING;
+                current_proc = p;
+                swtch(&idle.context, &p->context);
+            }
+        }
+    }
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -103,31 +124,31 @@ void scheduler(void)
 // there's no process.
 void sched(void)
 {
-	struct proc *p = curr_proc();
-	if (p->state == RUNNING)
-		panic("sched running");
-	swtch(&p->context, &idle.context);
+    struct proc *p = curr_proc();
+    if (p->state == RUNNING)
+        panic("sched running");
+    swtch(&p->context, &idle.context);
 }
 
 // Give up the CPU for one scheduling round.
 void yield(void)
 {
-	current_proc->state = RUNNABLE;
-	sched();
+    current_proc->state = RUNNABLE;
+    sched();
 }
 
 void freeproc(struct proc *p)
 {
-	p->state = UNUSED;
-	// uvmfree(p->pagetable, p->max_page);
+    p->state = UNUSED;
+    // uvmfree(p->pagetable, p->max_page);
 }
 
 // Exit the current process.
 void exit(int code)
 {
-	struct proc *p = curr_proc();
-	infof("proc %d exit with %d", p->pid, code);
-	freeproc(p);
-	finished();
-	sched();
+    struct proc *p = curr_proc();
+    infof("proc %d exit with %d", p->pid, code);
+    freeproc(p);
+    finished();
+    sched();
 }
