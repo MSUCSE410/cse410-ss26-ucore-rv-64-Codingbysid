@@ -73,8 +73,8 @@ $(C_OBJS): $(BUILDDIR)/$K/%.o : $K/%.c  $(BUILDDIR)/$K/%.d
 $(HEADER_DEP): $(BUILDDIR)/$K/%.d : $K/%.c
 	@mkdir -p $(@D)
 	@set -e; rm -f $@; $(CC) -MM $< $(INCLUDEFLAGS) > $@.$$$$; \
-        sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-        rm -f $@.$$$$
+		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+		rm -f $@.$$$$
 
 INIT_PROC ?= usershell
 
@@ -96,16 +96,17 @@ clean:
 	rm -rf $(BUILDDIR) os/kernel_app.ld os/link_app.S
 
 # BOARD
-BOARD		?= qemu
-SBI			?= rustsbi
-BOOTLOADER	:= ./bootloader/rustsbi-qemu.bin
+BOARD       ?= qemu
+SBI         ?= rustsbi
+# FIXED: Use QEMU's default built-in OpenSBI to avoid compatibility hangs
+BOOTLOADER  := default
 
 QEMU = qemu-system-riscv64
 QEMUOPTS = \
 	-nographic \
 	-machine virt \
 	-bios $(BOOTLOADER) \
-	-kernel build/kernel	\
+	-kernel build/kernel    \
 
 run: build/kernel
 	$(QEMU) $(QEMUOPTS)
@@ -126,4 +127,3 @@ user:
 	make -C user CHAPTER=$(CHAPTER) BASE=$(BASE)
 
 test: user run
-

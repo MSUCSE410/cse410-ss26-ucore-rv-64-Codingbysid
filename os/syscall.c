@@ -37,17 +37,14 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
     while (bytes_read < len) {
         int c = consgetc();
         
-        // If no character is available from the UART/keyboard, yield the CPU
+        // Fix garbage loop: Yield if no key pressed
         if (c == 255 || c == -1 || c == 0) {
             yield(); 
             continue;
         }
         
-        // We got a valid character
         str[bytes_read] = c;
         bytes_read++;
-        
-        // Return immediately so the interactive shell feels responsive
         break; 
     }
     
@@ -181,20 +178,23 @@ uint64 sys_exec(uint64 va)
 
 uint64 sys_wait(int pid, uint64 va)
 {
-    // The wait function is already handled to use copyout in proc.c
-    // so we just pass the virtual address.
     return wait(pid, (int*)va);
 }
 
 uint64 sys_spawn(uint64 va)
 {
-    // TODO: Task 1 - Process Creation
-    return -1;
+    struct proc *p = curr_proc();
+    char name[200];
+    copyinstr(p->pagetable, name, va, 200);
+    debugf("sys_spawn %s\n", name);
+    extern int spawn(char*); 
+    return spawn(name);
 }
 
 uint64 sys_set_priority(long long prio){
-    // TODO: Task 2 - Stride Scheduling
-    return -1;
+    if (prio < 2) return -1; 
+    curr_proc()->priority = prio;
+    return prio; 
 }
 
 extern char trap_page[];
@@ -245,16 +245,16 @@ void syscall()
     case SYS_spawn:
         ret = sys_spawn(args[0]);
         break;
-    case SYS_setpriority: // Ensure this uses the correct macro name
+    case SYS_setpriority: 
         ret = sys_set_priority(args[0]);
         break;
-    case SYS_task_info: // Re-added from Ch3
+    case SYS_task_info: 
         ret = sys_task_info(args[0]);
         break;
-    case SYS_mmap: // Re-added from Ch4
+    case SYS_mmap: 
         ret = sys_mmap(args[0], args[1], args[2], args[3], args[4]);
         break;
-    case SYS_munmap: // Re-added from Ch4
+    case SYS_munmap: 
         ret = sys_munmap(args[0], args[1]);
         break;
     default:

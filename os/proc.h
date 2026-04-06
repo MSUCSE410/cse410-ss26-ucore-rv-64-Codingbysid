@@ -7,7 +7,10 @@
 
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
-#define MAX_SYSCALL_NUM (500) // Re-added from Ch3
+#define MAX_SYSCALL_NUM (500) 
+
+// A large constant for stride scheduling
+#define BIG_STRIDE 0x7FFFFFFF
 
 struct file;
 
@@ -51,9 +54,13 @@ struct proc {
     uint64 exit_code;
     struct file *files[FD_BUFFER_SIZE];
     
-    // Re-added tracking fields from Ch3
     unsigned int syscall_times[MAX_SYSCALL_NUM]; 
     uint64 start_time;
+
+    // Task 2: Stride Scheduling Fields
+    uint64 priority;
+    uint64 stride;
+    uint64 pass;
 };
 
 int cpuid();
@@ -71,5 +78,6 @@ struct proc *pop_task();
 struct proc *allocproc();
 int fdalloc(struct file *);
 void swtch(struct context *, struct context *);
+int spawn(char *name); // Task 1: Declare spawn
 
 #endif // PROC_H

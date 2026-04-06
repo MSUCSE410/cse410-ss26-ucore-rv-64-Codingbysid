@@ -45,26 +45,41 @@ int allocpid()
     return PID++;
 }
 
+// Task 2: Stride Scheduling
 struct proc *fetch_task()
 {
-    int index = pop_queue(&task_queue);
-    if (index < 0) {
-        debugf("No task to fetch\n");
-        return NULL;
+    struct proc *best_p = NULL;
+    uint64 min_pass = -1ULL; // Max possible uint64 value
+
+    // Scan pool for RUNNABLE process with the smallest pass value
+    for (struct proc *p = pool; p < &pool[NPROC]; p++) {
+        if (p->state == RUNNABLE) {
+            if (p->pass < min_pass) {
+                min_pass = p->pass;
+                best_p = p;
+            }
+        }
     }
-    debugf("fetch task %d(pid=%d) to task queue\n", index, pool[index].pid);
-    return pool + index;
+
+    if (best_p != NULL) {
+        // Update pass value based on priority
+        best_p->stride = BIG_STRIDE / best_p->priority;
+        best_p->pass += best_p->stride;
+        
+        debugf("fetch task %d(pid=%d) with priority %d\n", best_p - pool, best_p->pid, best_p->priority);
+        return best_p;
+    }
+    
+    return NULL;
 }
 
 void add_task(struct proc *p)
 {
-    push_queue(&task_queue, p - pool);
-    debugf("add task %d(pid=%d) to task queue\n", p - pool, p->pid);
+    // For stride scheduling, we bypass the round-robin task_queue.
+    // fetch_task() will directly scan the pool for RUNNABLE processes.
 }
 
 // Look in the process table for an UNUSED proc.
-// If found, initialize state required to run in the kernel.
-// If there are no free procs, or a memory allocation fails, return 0.
 struct proc *allocproc()
 {
     struct proc *p;
@@ -84,6 +99,12 @@ found:
     p->parent = NULL;
     p->exit_code = 0;
     p->pagetable = uvmcreate((uint64)p->trapframe);
+    
+    // Task 2: Initialize Stride Scheduling variables
+    p->priority = 16; 
+    p->stride = 0;    
+    p->pass = 0;      
+
     memset(&p->context, 0, sizeof(p->context));
     memset((void *)p->kstack, 0, KSTACK_SIZE);
     memset((void *)p->trapframe, 0, TRAP_PAGE_SIZE);
@@ -92,11 +113,6 @@ found:
     return p;
 }
 
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running that process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
 void scheduler()
 {
     struct proc *p;
@@ -112,13 +128,6 @@ void scheduler()
     }
 }
 
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
 void sched()
 {
     struct proc *p = curr_proc();
@@ -127,7 +136,6 @@ void sched()
     swtch(&p->context, &idle.context);
 }
 
-// Give up the CPU for one scheduling round.
 void yield()
 {
     current_proc->state = RUNNABLE;
@@ -135,8 +143,6 @@ void yield()
     sched();
 }
 
-// Free a process's page table, and free the
-// physical memory it refers to.
 void freepagetable(pagetable_t pagetable, uint64 max_page)
 {
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
@@ -156,18 +162,14 @@ int fork()
 {
     struct proc *np;
     struct proc *p = curr_proc();
-    // Allocate process.
     if ((np = allocproc()) == 0) {
         panic("allocproc\n");
     }
-    // Copy user memory from parent to child.
     if (uvmcopy(p->pagetable, np->pagetable, p->max_page) < 0) {
         panic("uvmcopy\n");
     }
     np->max_page = p->max_page;
-    // copy saved user registers.
     *(np->trapframe) = *(p->trapframe);
-    // Cause fork to return 0 in the child.
     np->trapframe->a0 = 0;
     np->parent = p;
     np->state = RUNNABLE;
@@ -187,6 +189,24 @@ int exec(char *name)
     return 0;
 }
 
+// Task 1: Spawn
+int spawn(char *name)
+{
+    int id = get_id_by_name(name);
+    if (id < 0) return -1; // Invalid filename
+
+    struct proc *np = allocproc();
+    if (np == 0) return -1; // Insufficient memory/process pool full
+
+    loader(id, np);
+
+    np->parent = curr_proc();
+    np->state = RUNNABLE;
+    
+    add_task(np);
+    return np->pid; 
+}
+
 int wait(int pid, int *code)
 {
     struct proc *np;
@@ -194,14 +214,12 @@ int wait(int pid, int *code)
     struct proc *p = curr_proc();
 
     for (;;) {
-        // Scan through table looking for exited children.
         havekids = 0;
         for (np = pool; np < &pool[NPROC]; np++) {
             if (np->state != UNUSED && np->parent == p &&
                 (pid <= 0 || np->pid == pid)) {
                 havekids = 1;
                 if (np->state == ZOMBIE) {
-                    // Found one.
                     np->state = UNUSED;
                     pid = np->pid;
                     *code = np->exit_code;
@@ -218,7 +236,6 @@ int wait(int pid, int *code)
     }
 }
 
-// Exit the current process.
 void exit(int code)
 {
     struct proc *p = curr_proc();
@@ -226,10 +243,8 @@ void exit(int code)
     debugf("proc %d exit with %d\n", p->pid, code);
     freeproc(p);
     if (p->parent != NULL) {
-        // Parent should `wait`
         p->state = ZOMBIE;
     }
-    // Set the `parent` of all children to NULL
     struct proc *np;
     for (np = pool; np < &pool[NPROC]; np++) {
         if (np->parent == p) {
