@@ -45,38 +45,18 @@ int allocpid()
     return PID++;
 }
 
-// Task 2: Stride Scheduling
 struct proc *fetch_task()
 {
-    struct proc *best_p = NULL;
-    uint64 min_pass = -1ULL; // Max possible uint64 value
-
-    // Scan pool for RUNNABLE process with the smallest pass value
-    for (struct proc *p = pool; p < &pool[NPROC]; p++) {
-        if (p->state == RUNNABLE) {
-            if (p->pass < min_pass) {
-                min_pass = p->pass;
-                best_p = p;
-            }
-        }
+    int index = pop_queue(&task_queue);
+    if (index < 0) {
+        return NULL;
     }
-
-    if (best_p != NULL) {
-        // Update pass value based on priority
-        best_p->stride = BIG_STRIDE / best_p->priority;
-        best_p->pass += best_p->stride;
-        
-        debugf("fetch task %d(pid=%d) with priority %d\n", best_p - pool, best_p->pid, best_p->priority);
-        return best_p;
-    }
-    
-    return NULL;
+    return pool + index;
 }
 
 void add_task(struct proc *p)
 {
-    // For stride scheduling, we bypass the round-robin task_queue.
-    // fetch_task() will directly scan the pool for RUNNABLE processes.
+    push_queue(&task_queue, p - pool);
 }
 
 // Look in the process table for an UNUSED proc.
@@ -100,10 +80,10 @@ found:
     p->exit_code = 0;
     p->pagetable = uvmcreate((uint64)p->trapframe);
     
-    // Task 2: Initialize Stride Scheduling variables
-    p->priority = 16; 
-    p->stride = 0;    
-    p->pass = 0;      
+    // Step 4b: Set initial values
+    p->stride = 0;
+    p->priority = 16;
+    p->pass = BIG_STRIDE / p->priority;
 
     memset(&p->context, 0, sizeof(p->context));
     memset((void *)p->kstack, 0, KSTACK_SIZE);
@@ -113,18 +93,39 @@ found:
     return p;
 }
 
+// Step 6: Modify scheduler
 void scheduler()
 {
     struct proc *p;
     for (;;) {
-        p = fetch_task();
-        if (p == NULL) {
+        struct proc *chosen = NULL;
+        unsigned int min_stride = 0xFFFFFFFF; // Max possible value to find the minimum
+        
+        // Search through procs in the pool, find the minimum stride
+        for (p = pool; p < &pool[NPROC]; p++) {
+            if (p->state == RUNNABLE) {
+                if (p->stride < min_stride) {
+                    min_stride = p->stride;
+                    chosen = p;
+                }
+            }
+        }
+
+        if (chosen == NULL) {
             panic("all app are over!\n");
         }
-        tracef("swtich to proc %d", p - pool);
-        p->state = RUNNING;
-        current_proc = p;
-        swtch(&idle.context, &p->context);
+
+        // Set that proc's stride to the sum of its stride and its pass
+        chosen->stride = chosen->stride + chosen->pass;
+        
+        // Set its state to running
+        chosen->state = RUNNING;
+        
+        // Set current proc equal to chosen proc
+        current_proc = chosen;
+        
+        // Switch the context to the chosen proc's context
+        swtch(&idle.context, &chosen->context);
     }
 }
 
@@ -187,24 +188,6 @@ int exec(char *name)
     p->max_page = 0;
     loader(id, p);
     return 0;
-}
-
-// Task 1: Spawn
-int spawn(char *name)
-{
-    int id = get_id_by_name(name);
-    if (id < 0) return -1; // Invalid filename
-
-    struct proc *np = allocproc();
-    if (np == 0) return -1; // Insufficient memory/process pool full
-
-    loader(id, np);
-
-    np->parent = curr_proc();
-    np->state = RUNNABLE;
-    
-    add_task(np);
-    return np->pid; 
 }
 
 int wait(int pid, int *code)
