@@ -44,8 +44,7 @@ int allocpid()
 
 void add_task(struct proc *p)
 {
-    // Empty! We bypass the queue entirely to prevent overflow 
-    // since stride scheduling scans the process pool directly.
+    // Empty to prevent queue overflow with Stride Scheduling
 }
 
 struct proc *allocproc()
@@ -67,7 +66,6 @@ found:
     p->exit_code = 0;
     p->pagetable = uvmcreate((uint64)p->trapframe);
     
-    // Project 3: Set initial stride scheduling values
     p->stride = 0;
     p->priority = 16;
     p->pass = BIG_STRIDE / p->priority;
@@ -80,17 +78,16 @@ found:
     return p;
 }
 
-// Project 3: Stride Scheduler
 void scheduler()
 {
     struct proc *p;
     for (;;) {
         struct proc *chosen = NULL;
-        unsigned int min_stride = 0xFFFFFFFF; // Max possible value
+        unsigned int min_stride = 0xFFFFFFFF; 
         
         for (p = pool; p < &pool[NPROC]; p++) {
             if (p->state == RUNNABLE) {
-                if (p->stride <= min_stride) {
+                if (p->stride < min_stride) {
                     min_stride = p->stride;
                     chosen = p;
                 }
@@ -169,7 +166,6 @@ int exec(char *name)
     return 0;
 }
 
-// Project 3: Spawn
 int spawn(char *name)
 {
     int id = get_id_by_name(name);

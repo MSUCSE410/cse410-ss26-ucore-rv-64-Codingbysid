@@ -26,7 +26,6 @@ uint64 sys_write(int fd, uint64 va, uint len)
 
 uint64 sys_read(int fd, uint64 va, uint64 len)
 {
-    debugf("sys_read fd = %d str = %x, len = %d", fd, va, len);
     if (fd != STDIN) return -1;
         
     int c;
@@ -36,7 +35,7 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
             yield(); 
             continue;
         }
-        break; // Valid character found
+        break; 
     }
     
     char ch = (char)c;
@@ -173,7 +172,6 @@ uint64 sys_wait(int pid, uint64 va)
     return wait(pid, (int*)va);
 }
 
-// Project 3: sys_spawn
 uint64 sys_spawn(uint64 va)
 {
     char name[200];
@@ -184,7 +182,6 @@ uint64 sys_spawn(uint64 va)
     return spawn(name);
 }
 
-// Project 3: sys_set_priority
 uint64 sys_set_priority(long long prio){
     if (prio < 2) return -1; 
     struct proc *p = curr_proc();

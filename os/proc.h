@@ -8,7 +8,7 @@
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
 #define MAX_SYSCALL_NUM (500) 
-#define BIG_STRIDE 65536 // Project 3: Big Stride Constant
+#define BIG_STRIDE 65536 
 
 struct file;
 
@@ -38,24 +38,22 @@ struct TaskInfo {
     int time;                                      
 };
 
-// Per-process state
 struct proc {
-    enum procstate state; // Process state
-    int pid; // Process ID
-    pagetable_t pagetable; // User page table
-    uint64 ustack; // Virtual address of kernel stack
-    uint64 kstack; // Virtual address of kernel stack
-    struct trapframe *trapframe; // data page for trampoline.S
-    struct context context; // swtch() here to run process
+    enum procstate state; 
+    int pid; 
+    pagetable_t pagetable; 
+    uint64 ustack; 
+    uint64 kstack; 
+    struct trapframe *trapframe; 
+    struct context context; 
     uint64 max_page;
-    struct proc *parent; // Parent process
+    struct proc *parent; 
     uint64 exit_code;
     struct file *files[FD_BUFFER_SIZE];
     
     unsigned int syscall_times[MAX_SYSCALL_NUM]; 
     uint64 start_time;
 
-    // Project 3: Stride Scheduling Fields
     unsigned int stride;
     unsigned int pass;
     long long priority;
