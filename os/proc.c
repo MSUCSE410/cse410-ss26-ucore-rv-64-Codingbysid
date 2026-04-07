@@ -12,7 +12,6 @@ __attribute__((aligned(4096))) char trapframe[NPROC][TRAP_PAGE_SIZE];
 extern char boot_stack_top[];
 struct proc *current_proc;
 struct proc idle;
-struct queue task_queue;
 
 int threadid()
 {
@@ -24,7 +23,6 @@ struct proc *curr_proc()
     return current_proc;
 }
 
-// initialize the proc table at boot time.
 void proc_init()
 {
     struct proc *p;
@@ -36,7 +34,6 @@ void proc_init()
     idle.kstack = (uint64)boot_stack_top;
     idle.pid = IDLE_PID;
     current_proc = &idle;
-    init_queue(&task_queue);
 }
 
 int allocpid()
@@ -45,21 +42,12 @@ int allocpid()
     return PID++;
 }
 
-struct proc *fetch_task()
-{
-    int index = pop_queue(&task_queue);
-    if (index < 0) {
-        return NULL;
-    }
-    return pool + index;
-}
-
 void add_task(struct proc *p)
 {
-    push_queue(&task_queue, p - pool);
+    // Empty! We bypass the queue entirely to prevent overflow 
+    // since stride scheduling scans the process pool directly.
 }
 
-// Look in the process table for an UNUSED proc.
 struct proc *allocproc()
 {
     struct proc *p;
@@ -71,7 +59,6 @@ struct proc *allocproc()
     return 0;
 
 found:
-    // init proc
     p->pid = allocpid();
     p->state = USED;
     p->ustack = 0;
@@ -80,7 +67,7 @@ found:
     p->exit_code = 0;
     p->pagetable = uvmcreate((uint64)p->trapframe);
     
-    // Step 4b: Set initial values
+    // Project 3: Set initial stride scheduling values
     p->stride = 0;
     p->priority = 16;
     p->pass = BIG_STRIDE / p->priority;
@@ -93,18 +80,17 @@ found:
     return p;
 }
 
-// Step 6: Modify scheduler
+// Project 3: Stride Scheduler
 void scheduler()
 {
     struct proc *p;
     for (;;) {
         struct proc *chosen = NULL;
-        unsigned int min_stride = 0xFFFFFFFF; // Max possible value to find the minimum
+        unsigned int min_stride = 0xFFFFFFFF; // Max possible value
         
-        // Search through procs in the pool, find the minimum stride
         for (p = pool; p < &pool[NPROC]; p++) {
             if (p->state == RUNNABLE) {
-                if (p->stride < min_stride) {
+                if (p->stride <= min_stride) {
                     min_stride = p->stride;
                     chosen = p;
                 }
@@ -115,16 +101,9 @@ void scheduler()
             panic("all app are over!\n");
         }
 
-        // Set that proc's stride to the sum of its stride and its pass
         chosen->stride = chosen->stride + chosen->pass;
-        
-        // Set its state to running
         chosen->state = RUNNING;
-        
-        // Set current proc equal to chosen proc
         current_proc = chosen;
-        
-        // Switch the context to the chosen proc's context
         swtch(&idle.context, &chosen->context);
     }
 }
@@ -188,6 +167,23 @@ int exec(char *name)
     p->max_page = 0;
     loader(id, p);
     return 0;
+}
+
+// Project 3: Spawn
+int spawn(char *name)
+{
+    int id = get_id_by_name(name);
+    if (id < 0) return -1;
+
+    struct proc *np = allocproc();
+    if (np == 0) return -1;
+
+    loader(id, np);
+    np->parent = curr_proc();
+    np->state = RUNNABLE;
+    
+    add_task(np);
+    return np->pid; 
 }
 
 int wait(int pid, int *code)

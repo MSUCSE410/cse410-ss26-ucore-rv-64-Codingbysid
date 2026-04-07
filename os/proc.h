@@ -8,7 +8,7 @@
 #define NPROC (512)
 #define FD_BUFFER_SIZE (16)
 #define MAX_SYSCALL_NUM (500) 
-#define BIG_STRIDE 65536 // Defined from guide Step 4a
+#define BIG_STRIDE 65536 // Project 3: Big Stride Constant
 
 struct file;
 
@@ -55,7 +55,7 @@ struct proc {
     unsigned int syscall_times[MAX_SYSCALL_NUM]; 
     uint64 start_time;
 
-    // Step 4a: Implement new fields
+    // Project 3: Stride Scheduling Fields
     unsigned int stride;
     unsigned int pass;
     long long priority;
@@ -72,9 +72,9 @@ int fork();
 int exec(char *);
 int wait(int, int *);
 void add_task(struct proc *);
-struct proc *pop_task();
 struct proc *allocproc();
 int fdalloc(struct file *);
 void swtch(struct context *, struct context *);
+int spawn(char *name); 
 
 #endif // PROC_H

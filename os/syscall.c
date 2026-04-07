@@ -30,13 +30,13 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
     if (fd != STDIN) return -1;
         
     int c;
-    // Tight polling loop: Do NOT yield. This prevents dropping characters
-    // when the autograder pumps commands instantly into the UART.
     while (1) {
         c = consgetc();
-        if (c != 255 && c != -1 && c != 0) {
-            break; // Valid character found!
+        if (c == 255 || c == -1 || c == 0) {
+            yield(); 
+            continue;
         }
+        break; // Valid character found
     }
     
     char ch = (char)c;
@@ -88,7 +88,6 @@ uint64 sys_task_info(uint64 ti_va) {
     return 0;
 }
 
-// Step 1: sys_mmap and sys_munmap mapped over
 uint64 sys_mmap(uint64 start, uint64 len, int port, int flag, int fd) {
     if (start % 4096 != 0) return -1;
     if (len == 0) return 0; 
@@ -174,31 +173,18 @@ uint64 sys_wait(int pid, uint64 va)
     return wait(pid, (int*)va);
 }
 
-// Step 3: Implement sys_spawn
+// Project 3: sys_spawn
 uint64 sys_spawn(uint64 va)
 {
     char name[200];
     struct proc *p = curr_proc();
-    struct proc *np = NULL;
     
     copyinstr(p->pagetable, name, va, 200);
-    
-    int id = get_id_by_name(name);
-    if (id < 0) return -1;
-    
-    np = allocproc();
-    if (np == 0) return -1;
-    
-    np->parent = p;
-    loader(id, np);
-    
-    np->state = RUNNABLE;
-    add_task(np);
-    
-    return np->pid;
+    extern int spawn(char*); 
+    return spawn(name);
 }
 
-// Step 5: Implement sys_set_priority
+// Project 3: sys_set_priority
 uint64 sys_set_priority(long long prio){
     if (prio < 2) return -1; 
     struct proc *p = curr_proc();
