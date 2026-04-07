@@ -49,7 +49,6 @@ else ifeq ($(LOG), trace)
 CFLAGS += -D LOG_LEVEL_TRACE
 endif
 
-# Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
 CFLAGS += -fno-pie -no-pie
 endif
@@ -57,7 +56,6 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
-# empty target
 .FORCE:
 
 LDFLAGS = -z max-page-size=4096
@@ -95,11 +93,9 @@ build/kernel: $(OBJS) os/kernel_app.ld
 clean:
 	rm -rf $(BUILDDIR) os/kernel_app.ld os/link_app.S
 
-# BOARD
 BOARD       ?= qemu
 SBI         ?= rustsbi
-# FIXED: Use QEMU's default built-in OpenSBI to avoid compatibility hangs
-BOOTLOADER  := default
+BOOTLOADER  := ./bootloader/rustsbi-qemu.bin
 
 QEMU = qemu-system-riscv64
 QEMUOPTS = \
@@ -111,7 +107,6 @@ QEMUOPTS = \
 run: build/kernel
 	$(QEMU) $(QEMUOPTS)
 
-# QEMU's gdb stub command line changed in 0.11
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::15234"; \
 	else echo "-s -p 15234"; fi)
