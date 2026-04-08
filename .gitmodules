@@ -1,0 +1,3 @@
+[submodule "cr-scripts"]
+	path = cr-scripts
+	url = https://github.com/MSUCSE410/cr-scripts.git
