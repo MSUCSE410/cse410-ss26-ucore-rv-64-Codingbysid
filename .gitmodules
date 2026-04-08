@@ -1,3 +1,8 @@
+
 [submodule "cr-scripts"]
-	path = cr-scripts
-	url = https://github.com/MSUCSE410/cr-scripts.git
+    path = cr-scripts
+    url = https://github.com/MSUCSE410/cr-scripts.git
+
+[submodule "uCore-RV-64-test"]
+	path = uCore-RV-64-test
+	url = https://github.com/LearningOS/uCore-RV-64-test.git
