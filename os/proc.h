@@ -30,8 +30,8 @@ struct context {
 };
 
 enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
-
 typedef enum procstate TaskStatus; 
+
 struct TaskInfo {
     TaskStatus status;                             
     unsigned int syscall_times[MAX_SYSCALL_NUM];   

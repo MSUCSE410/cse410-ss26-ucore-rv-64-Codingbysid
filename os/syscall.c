@@ -9,8 +9,7 @@
 
 uint64 get_cycle(); 
 
-uint64 sys_write(int fd, uint64 va, uint len)
-{
+uint64 sys_write(int fd, uint64 va, uint len){
     debugf("sys_write fd = %d str = %x, len = %d", fd, va, len);
     if (fd != STDOUT)
         return -1;
@@ -24,12 +23,10 @@ uint64 sys_write(int fd, uint64 va, uint len)
     return size;
 }
 
-uint64 sys_read(int fd, uint64 va, uint64 len)
-{
+uint64 sys_read(int fd, uint64 va, uint64 len){
     if (fd != STDIN) return -1;
         
     int c;
-    // Tight polling loop: No yield(). This catches fast autograder inputs.
     while (1) {
         c = consgetc();
         if (c != 255 && c != -1 && c != 0) {
@@ -42,20 +39,17 @@ uint64 sys_read(int fd, uint64 va, uint64 len)
     return 1; 
 }
 
-__attribute__((noreturn)) void sys_exit(int code)
-{
+__attribute__((noreturn)) void sys_exit(int code){
     exit(code);
     __builtin_unreachable();
 }
 
-uint64 sys_sched_yield()
-{
+uint64 sys_sched_yield(){
     yield();
     return 0;
 }
 
-uint64 sys_gettimeofday(uint64 val, int _tz)
-{
+uint64 sys_gettimeofday(uint64 val, int _tz){
     struct proc *p = curr_proc();
     if (val == 0) return -1;
     uint64 cycle = get_cycle();
@@ -140,25 +134,21 @@ uint64 sys_munmap(uint64 start, uint64 len) {
     return 0; 
 }
 
-uint64 sys_getpid()
-{
+uint64 sys_getpid(){
     return curr_proc()->pid;
 }
 
-uint64 sys_getppid()
-{
+uint64 sys_getppid(){
     struct proc *p = curr_proc();
     return p->parent == NULL ? IDLE_PID : p->parent->pid;
 }
 
-uint64 sys_clone()
-{
+uint64 sys_clone(){
     debugf("fork!\n");
     return fork();
 }
 
-uint64 sys_exec(uint64 va)
-{
+uint64 sys_exec(uint64 va){
     struct proc *p = curr_proc();
     char name[200];
     copyinstr(p->pagetable, name, va, 200);
@@ -166,13 +156,11 @@ uint64 sys_exec(uint64 va)
     return exec(name);
 }
 
-uint64 sys_wait(int pid, uint64 va)
-{
+uint64 sys_wait(int pid, uint64 va){
     return wait(pid, (int*)va);
 }
 
-uint64 sys_spawn(uint64 va)
-{
+uint64 sys_spawn(uint64 va){
     char name[200];
     struct proc *p = curr_proc();
     
@@ -191,8 +179,7 @@ uint64 sys_set_priority(long long prio){
 
 extern char trap_page[];
 
-void syscall()
-{
+void syscall(){
     struct trapframe *trapframe = curr_proc()->trapframe;
     int id = trapframe->a7, ret;
     uint64 args[6] = { trapframe->a0, trapframe->a1, trapframe->a2,

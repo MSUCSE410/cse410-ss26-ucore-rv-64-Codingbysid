@@ -13,18 +13,15 @@ extern char boot_stack_top[];
 struct proc *current_proc;
 struct proc idle;
 
-int threadid()
-{
+int threadid(){
     return curr_proc()->pid;
 }
 
-struct proc *curr_proc()
-{
+struct proc *curr_proc(){
     return current_proc;
 }
 
-void proc_init()
-{
+void proc_init(){
     struct proc *p;
     for (p = pool; p < &pool[NPROC]; p++) {
         p->state = UNUSED;
@@ -36,19 +33,16 @@ void proc_init()
     current_proc = &idle;
 }
 
-int allocpid()
-{
+int allocpid(){
     static int PID = 1;
     return PID++;
 }
 
-void add_task(struct proc *p)
-{
-    // Empty to prevent queue overflow with Stride Scheduling
+void add_task(struct proc *p){
+    // Empty: We bypass the queue entirely since stride scheduling scans the pool directly
 }
 
-struct proc *allocproc()
-{
+struct proc *allocproc(){
     struct proc *p;
     for (p = pool; p < &pool[NPROC]; p++) {
         if (p->state == UNUSED) {
@@ -78,8 +72,7 @@ found:
     return p;
 }
 
-void scheduler()
-{
+void scheduler(){
     struct proc *p;
     for (;;) {
         struct proc *chosen = NULL;
@@ -105,38 +98,33 @@ void scheduler()
     }
 }
 
-void sched()
-{
+void sched(){
     struct proc *p = curr_proc();
     if (p->state == RUNNING)
         panic("sched running");
     swtch(&p->context, &idle.context);
 }
 
-void yield()
-{
+void yield(){
     current_proc->state = RUNNABLE;
     add_task(current_proc);
     sched();
 }
 
-void freepagetable(pagetable_t pagetable, uint64 max_page)
-{
+void freepagetable(pagetable_t pagetable, uint64 max_page){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
     uvmunmap(pagetable, TRAPFRAME, 1, 0);
     uvmfree(pagetable, max_page);
 }
 
-void freeproc(struct proc *p)
-{
+void freeproc(struct proc *p){
     if (p->pagetable)
         freepagetable(p->pagetable, p->max_page);
     p->pagetable = 0;
     p->state = UNUSED;
 }
 
-int fork()
-{
+int fork(){
     struct proc *np;
     struct proc *p = curr_proc();
     if ((np = allocproc()) == 0) {
@@ -154,8 +142,7 @@ int fork()
     return np->pid;
 }
 
-int exec(char *name)
-{
+int exec(char *name){
     int id = get_id_by_name(name);
     if (id < 0)
         return -1;
@@ -166,8 +153,7 @@ int exec(char *name)
     return 0;
 }
 
-int spawn(char *name)
-{
+int spawn(char *name){
     int id = get_id_by_name(name);
     if (id < 0) return -1;
 
@@ -182,8 +168,7 @@ int spawn(char *name)
     return np->pid; 
 }
 
-int wait(int pid, int *code)
-{
+int wait(int pid, int *code){
     struct proc *np;
     int havekids;
     struct proc *p = curr_proc();
@@ -211,8 +196,7 @@ int wait(int pid, int *code)
     }
 }
 
-void exit(int code)
-{
+void exit(int code){
     struct proc *p = curr_proc();
     p->exit_code = code;
     debugf("proc %d exit with %d\n", p->pid, code);
