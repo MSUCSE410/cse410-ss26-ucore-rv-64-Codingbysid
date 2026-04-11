@@ -60,6 +60,7 @@ found:
     p->exit_code = 0;
     p->pagetable = uvmcreate((uint64)p->trapframe);
     
+    // Initialize Stride Scheduling parameters
     p->stride = 0;
     p->priority = 16;
     p->pass = BIG_STRIDE / p->priority;
@@ -168,7 +169,8 @@ int spawn(char *name){
     return np->pid; 
 }
 
-int wait(int pid, int *code){
+// Fixed wait to properly handle exit_code without corrupting child PID
+int wait(int pid, int *code) {
     struct proc *np;
     int havekids;
     struct proc *p = curr_proc();
@@ -180,10 +182,12 @@ int wait(int pid, int *code){
                 (pid <= 0 || np->pid == pid)) {
                 havekids = 1;
                 if (np->state == ZOMBIE) {
-                    np->state = UNUSED;
-                    pid = np->pid;
-                    *code = np->exit_code;
-                    return pid;
+                    int child_pid = np->pid;
+                    if (code != 0) {
+                        *code = np->exit_code;
+                    }
+                    np->state = UNUSED; 
+                    return child_pid;
                 }
             }
         }

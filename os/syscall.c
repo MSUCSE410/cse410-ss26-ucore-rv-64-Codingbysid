@@ -32,6 +32,7 @@ uint64 sys_read(int fd, uint64 va, uint64 len){
         if (c != 255 && c != -1 && c != 0) {
             break; 
         }
+        yield(); // Prevents kernel panic while waiting for input
     }
     
     char ch = (char)c;
@@ -156,8 +157,16 @@ uint64 sys_exec(uint64 va){
     return exec(name);
 }
 
-uint64 sys_wait(int pid, uint64 va){
-    return wait(pid, (int*)va);
+// Safely handles the user pointer to avoid memory corruption
+uint64 sys_wait(int pid, uint64 va) {
+    int code;
+    int ret = wait(pid, &code);
+    
+    // Use copyout to securely pass the exit code to user space
+    if (ret >= 0 && va != 0) {
+        copyout(curr_proc()->pagetable, va, (char *)&code, sizeof(int));
+    }
+    return ret;
 }
 
 uint64 sys_spawn(uint64 va){
