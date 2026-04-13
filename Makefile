@@ -122,4 +122,5 @@ CHAPTER ?= $(shell git rev-parse --abbrev-ref HEAD | grep -oP 'ch\K[0-9]')
 user:
 	make -C user CHAPTER=$(CHAPTER) BASE=$(BASE)
 
-test: user run
+test: user build/kernel
+	echo -e "ch5_usertest\n" | $(QEMU) $(QEMUOPTS)
