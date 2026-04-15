@@ -10,31 +10,31 @@
 
 // in-memory copy of an inode,it can be used to quickly locate file entities on disk
 struct inode {
-	uint dev; // Device number
-	uint inum; // Inode number
-	int ref; // Reference count
-	int valid; // inode has been read from disk?
-	short type; // copy of disk inode
-	uint size;
-	uint addrs[NDIRECT + 1];
-	// LAB4: You may need to add link count here
+    uint dev; // Device number
+    uint inum; // Inode number
+    int ref; // Reference count
+    int valid; // inode has been read from disk?
+    short type; // copy of disk inode
+    uint size;
+    uint addrs[NDIRECT + 1];
+    uint nlink; // LAB 4: Added link count 
 };
 
 // Defines a file in memory that provides information about the current use of the file and the corresponding inode location
 struct file {
-	enum { FD_NONE = 0, FD_INODE, FD_STDIO } type;
-	int ref; // reference count
-	char readable;
-	char writable;
-	struct inode *ip; // FD_INODE
-	uint off;
+    enum { FD_NONE = 0, FD_INODE, FD_STDIO } type;
+    int ref; // reference count
+    char readable;
+    char writable;
+    struct inode *ip; // FD_INODE
+    uint off;
 };
 
 //A few specific fd
 enum {
-	STDIN = 0,
-	STDOUT = 1,
-	STDERR = 2,
+    STDIN = 0,
+    STDOUT = 1,
+    STDERR = 2,
 };
 
 extern struct file filepool[FILEPOOLSIZE];
@@ -46,5 +46,9 @@ uint64 inodewrite(struct file *, uint64, uint64);
 uint64 inoderead(struct file *, uint64, uint64);
 struct file *stdio_init(int);
 int show_all_files();
+
+// LAB 4 Additions
+struct file *filedup(struct file *f);
+int filestat(struct file *f, uint64 addr);
 
 #endif // FILE_H
