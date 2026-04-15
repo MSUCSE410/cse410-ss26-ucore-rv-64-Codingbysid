@@ -22,7 +22,7 @@ OBJS = $(C_OBJS) $(AS_OBJS)
 HEADER_DEP = $(addsuffix .d, $(basename $(C_OBJS)))
 
 ifeq (,$(findstring link_app.o,$(OBJS)))
-	AS_OBJS += $(BUILDDIR)/$K/link_app.o
+    AS_OBJS += $(BUILDDIR)/$K/link_app.o
 endif
 
 -include $(HEADER_DEP)
@@ -100,17 +100,17 @@ BOOTLOADER  := default
 
 QEMU = qemu-system-riscv64
 QEMUOPTS = \
-	-nographic \
-	-machine virt \
-	-bios $(BOOTLOADER) \
-	-kernel build/kernel    \
+    -nographic \
+    -machine virt \
+    -bios $(BOOTLOADER) \
+    -kernel build/kernel    \
 
 run: build/kernel
 	$(QEMU) $(QEMUOPTS)
 
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
-	then echo "-gdb tcp::15234"; \
-	else echo "-s -p 15234"; fi)
+    then echo "-gdb tcp::15234"; \
+    else echo "-s -p 15234"; fi)
 
 debug: build/kernel .gdbinit
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB) &
@@ -123,4 +123,4 @@ user:
 	make -C user CHAPTER=$(CHAPTER) BASE=$(BASE)
 
 test: user build/kernel
-	echo -e "ch5_usertest\n" | $(QEMU) $(QEMUOPTS)
+	-@(sleep 1; echo "ch5_usertest"; sleep 10) | timeout 20 $(QEMU) $(QEMUOPTS)
