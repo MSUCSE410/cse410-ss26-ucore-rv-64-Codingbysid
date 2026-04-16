@@ -24,7 +24,7 @@ OBJS = $(C_OBJS) $(AS_OBJS)
 HEADER_DEP = $(addsuffix .d, $(basename $(C_OBJS)))
 
 ifeq (,$(findstring initproc.o,$(OBJS)))
-	AS_OBJS += $(BUILDDIR)/$K/initproc.o
+    AS_OBJS += $(BUILDDIR)/$K/initproc.o
 endif
 
 INIT_PROC ?= usershell
@@ -78,8 +78,8 @@ $(C_OBJS): $(BUILDDIR)/$K/%.o : $K/%.c  $(BUILDDIR)/$K/%.d
 $(HEADER_DEP): $(BUILDDIR)/$K/%.d : $K/%.c
 	@mkdir -p $(@D)
 	@set -e; rm -f $@; $(CC) -MM $< $(INCLUDEFLAGS) > $@.$$$$; \
-        sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
-        rm -f $@.$$$$
+		sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
+		rm -f $@.$$$$
 
 INIT_PROC ?= usershell
 
@@ -93,20 +93,20 @@ build/kernel: $(OBJS) os/kernel.ld
 
 clean:
 	rm -rf $(BUILDDIR) os/initproc.S
-	rm $(F)/*.img
+	rm -f $(F)/*.img
 
 # BOARD
-BOARD		?= qemu
-SBI			?= rustsbi
-BOOTLOADER	:= ./bootloader/rustsbi-qemu.bin
+BOARD       ?= qemu
+SBI         ?= rustsbi
+BOOTLOADER  := ./bootloader/rustsbi-qemu.bin
 
 QEMU = qemu-system-riscv64
 QEMUOPTS = \
-	-nographic \
-	-machine virt \
-	-bios $(BOOTLOADER) \
-	-kernel build/kernel	\
-	-drive file=$(F)/fs-copy.img,if=none,format=raw,id=x0 \
+    -nographic \
+    -machine virt \
+    -bios $(BOOTLOADER) \
+    -kernel build/kernel    \
+    -drive file=$(F)/fs-copy.img,if=none,format=raw,id=x0 \
     -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
 $(F)/fs.img:
@@ -120,8 +120,8 @@ run: build/kernel $(F)/fs-copy.img
 
 # QEMU's gdb stub command line changed in 0.11
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
-	then echo "-gdb tcp::15234"; \
-	else echo "-s -p 15234"; fi)
+    then echo "-gdb tcp::15234"; \
+    else echo "-s -p 15234"; fi)
 
 debug: build/kernel .gdbinit $(F)/fs-copy.img
 	$(QEMU) $(QEMUOPTS) -S $(QEMUGDB) &
@@ -133,6 +133,5 @@ CHAPTER ?= $(shell git rev-parse --abbrev-ref HEAD | grep -oP 'ch\K[0-9]')
 user:
 	make -C user CHAPTER=$(CHAPTER) BASE=$(BASE)
 
- test6: user build/kernel
+test6: user build/kernel
 	-@(sleep 1; echo "ch6_usertest"; sleep 15) | timeout 30 $(QEMU) $(QEMUOPTS)
-
