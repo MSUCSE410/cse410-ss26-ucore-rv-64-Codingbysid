@@ -133,5 +133,5 @@ CHAPTER ?= $(shell git rev-parse --abbrev-ref HEAD | grep -oP 'ch\K[0-9]')
 user:
 	make -C user CHAPTER=$(CHAPTER) BASE=$(BASE)
 
-test6: user build/kernel
+test: user build/kernel $(F)/fs-copy.img
 	-@(sleep 1; echo "ch6_usertest"; sleep 15) | timeout 30 $(QEMU) $(QEMUOPTS)
